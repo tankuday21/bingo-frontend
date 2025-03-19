@@ -1,61 +1,86 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Copy } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Copy } from "lucide-react";
+import { useGameSocket } from "@/hooks/use-game-socket";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CreateGame() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [username, setUsername] = useState("")
-  const [gridSize, setGridSize] = useState("5")
-  const [theme, setTheme] = useState("default")
-  const [roomCode, setRoomCode] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-  const [isCreated, setIsCreated] = useState(false)
+  const router = useRouter();
+  const { toast } = useToast();
+  const [username, setUsername] = useState("");
+  const [gridSize, setGridSize] = useState("5");
+  const [theme, setTheme] = useState("default");
+  const [roomCode, setRoomCode] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [isCreated, setIsCreated] = useState(false);
 
-  const handleCreateGame = async () => {
+  const { socket, isConnected } = useGameSocket(""); // Empty roomCode initially
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("roomCreated", ({ roomCode }) => {
+      setRoomCode(roomCode);
+      setIsCreated(true);
+      setIsCreating(false);
+    });
+
+    socket.on("error", ({ message }) => {
+      setIsCreating(false);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    });
+
+    return () => {
+      socket.off("roomCreated");
+      socket.off("error");
+    };
+  }, [socket, toast]);
+
+  const handleCreateGame = () => {
     if (!username) {
       toast({
         title: "Username required",
         description: "Please enter a username to create a game",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsCreating(true)
+    if (!isConnected || !socket) {
+      toast({
+        title: "Connection Error",
+        description: "Not connected to the server. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // In a real implementation, this would make an API call to create a game
-    // For now, we'll simulate the API call with a timeout
-    setTimeout(() => {
-      // Generate a random 6-character room code
-      const generatedCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      setRoomCode(generatedCode)
-      setIsCreated(true)
-      setIsCreating(false)
-    }, 1000)
-  }
+    setIsCreating(true);
+    socket.emit("createRoom", { username, gridSize: Number.parseInt(gridSize), theme });
+  };
 
   const copyRoomCode = () => {
-    navigator.clipboard.writeText(roomCode)
+    navigator.clipboard.writeText(roomCode);
     toast({
       title: "Room code copied",
       description: "Share this code with your friends to join the game",
-    })
-  }
+    });
+  };
 
   const startGame = () => {
-    // Store game settings in localStorage for this demo
-    // In a real implementation, this would be handled by the server
     localStorage.setItem(
       "gameSettings",
       JSON.stringify({
@@ -65,10 +90,10 @@ export default function CreateGame() {
         roomCode,
         isHost: true,
       }),
-    )
+    );
 
-    router.push(`/game/${roomCode}`)
-  }
+    router.push(`/game/${roomCode}`);
+  };
 
   return (
     <div className="container flex items-center justify-center min-h-screen py-8">
@@ -152,6 +177,5 @@ export default function CreateGame() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
-
