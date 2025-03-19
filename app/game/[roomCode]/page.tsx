@@ -121,7 +121,7 @@ export default function GamePage({ params }: { params: { roomCode: string } }) {
       setMarkedCells(marked)
 
       // Set current player
-      const currentPlayerObj = players.find((p) => p.isTurn)
+      const currentPlayerObj = players.find((p: { isTurn: any }) => p.isTurn)
       if (currentPlayerObj) {
         setCurrentPlayer(currentPlayerObj.username)
       }

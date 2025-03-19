@@ -1,12 +1,13 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { toast } from "./use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export function useGameSocket(roomCode: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -20,6 +21,7 @@ export function useGameSocket(roomCode: string) {
       return;
     }
 
+    console.log("Connecting to backend at:", BACKEND_URL);
     const socketInstance = io(BACKEND_URL, {
       query: { roomCode },
       path: "/socket.io",
@@ -27,7 +29,7 @@ export function useGameSocket(roomCode: string) {
     });
 
     socketInstance.on("connect", () => {
-      console.log("Connected to socket server");
+      console.log("Connected to socket server with ID:", socketInstance.id);
       setIsConnected(true);
     });
 
@@ -42,7 +44,7 @@ export function useGameSocket(roomCode: string) {
     });
 
     socketInstance.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
+      console.error("Socket connection error:", error.message);
       setIsConnected(false);
       toast({
         title: "Connection Error",
@@ -54,9 +56,10 @@ export function useGameSocket(roomCode: string) {
     setSocket(socketInstance);
 
     return () => {
+      console.log("Cleaning up socket connection");
       socketInstance.disconnect();
     };
-  }, [roomCode]);
+  }, [roomCode, toast]);
 
   return { socket, isConnected };
 }
