@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { toast } from "./use-toasts";
+import { toast } from "./use-toast";
 
 export function useGameSocket(roomCode: string) {
   const [isConnected, setIsConnected] = useState(false);
