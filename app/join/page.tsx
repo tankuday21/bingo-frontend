@@ -1,49 +1,30 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useGameSocket } from "@/hooks/use-game-socket";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function JoinGame() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [username, setUsername] = useState("")
-  const [roomCode, setRoomCode] = useState("")
-  const [theme, setTheme] = useState("default")
-  const [isJoining, setIsJoining] = useState(false)
+  const router = useRouter();
+  const { toast } = useToast();
+  const [username, setUsername] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [theme, setTheme] = useState("default");
+  const [isJoining, setIsJoining] = useState(false);
 
-  const handleJoinGame = async () => {
-    if (!username) {
-      toast({
-        title: "Username required",
-        description: "Please enter a username to join the game",
-        variant: "destructive",
-      })
-      return
-    }
+  const { socket, isConnected } = useGameSocket(roomCode);
 
-    if (!roomCode) {
-      toast({
-        title: "Room code required",
-        description: "Please enter a room code to join the game",
-        variant: "destructive",
-      })
-      return
-    }
+  useEffect(() => {
+    if (!socket) return;
 
-    setIsJoining(true)
-
-    // In a real implementation, this would verify the room code with the server
-    // For now, we'll simulate the API call with a timeout
-    setTimeout(() => {
-      // Store game settings in localStorage for this demo
-      // In a real implementation, this would be handled by the server
+    socket.on("gameState", () => {
       localStorage.setItem(
         "gameSettings",
         JSON.stringify({
@@ -52,11 +33,57 @@ export default function JoinGame() {
           roomCode,
           isHost: false,
         }),
-      )
+      );
+      setIsJoining(false);
+      router.push(`/game/${roomCode}`);
+    });
 
-      router.push(`/game/${roomCode}`)
-    }, 1000)
-  }
+    socket.on("error", ({ message }) => {
+      setIsJoining(false);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    });
+
+    return () => {
+      socket.off("gameState");
+      socket.off("error");
+    };
+  }, [socket, router, username, theme, roomCode, toast]);
+
+  const handleJoinGame = () => {
+    if (!username) {
+      toast({
+        title: "Username required",
+        description: "Please enter a username to join the game",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!roomCode) {
+      toast({
+        title: "Room code required",
+        description: "Please enter a room code to join the game",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isConnected || !socket) {
+      toast({
+        title: "Connection Error",
+        description: "Not connected to the server. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsJoining(true);
+    socket.emit("joinRoom", { roomCode, username, theme });
+  };
 
   return (
     <div className="container flex items-center justify-center min-h-screen py-8">
@@ -108,6 +135,5 @@ export default function JoinGame() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
-
